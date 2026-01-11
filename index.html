@@ -1,0 +1,1446 @@
+			<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dutch Pub Card Game - Pro Edition</title>
+    <style>
+        /* --- CSS STYLES --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a5f23 0%, #0d3312 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+            padding-bottom: 50px;
+        }
+        
+        .container { max-width: 1600px; margin: 0 auto; }
+        
+        /* HEADER & CONTROLS */
+        header {
+            text-align: center; margin-bottom: 20px; padding: 15px;
+            background: rgba(0, 0, 0, 0.3); border-radius: 15px;
+            border: 2px solid #8B4513; display: flex;
+            justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 15px;
+        }
+        .header-left, .header-center, .header-right { flex: 1; min-width: 200px; }
+        .header-left { text-align: left; }
+        .header-center { text-align: center; }
+        .header-right { text-align: right; display: flex; justify-content: flex-end; gap: 5px; }
+
+        #playerNameInput { padding: 8px; border-radius: 8px 0 0 8px; border: 1px solid #FFD700; background: rgba(0,0,0,0.5); color: white; outline: none; width: 120px; }
+        #setNameBtn { border-radius: 0 8px 8px 0; background: #1E90FF; border: 1px solid #FFD700; margin: 0; }
+        
+        .difficulty-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .difficulty-btn {
+            padding: 8px 15px; border-radius: 20px; background: rgba(139, 69, 19, 0.7);
+            border: 1px solid #FFD700; color: white; cursor: pointer; transition: all 0.3s; font-size: 0.9em;
+        }
+        .difficulty-btn.active { background: #8B4513; border-color: #FFD700; box-shadow: 0 0 10px #FFD700; }
+        
+        h1 { font-size: 2em; color: #FFD700; text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.5); margin-bottom: 5px; line-height: 1; }
+        .subtitle { font-size: 0.9em; color: #ccc; }
+        
+        /* LAYOUT GRID */
+        .game-layout {
+            display: grid; grid-template-columns: 1fr 300px 300px;
+            gap: 20px; margin-bottom: 20px; align-items: start;
+        }
+        
+        .players-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        
+        .player {
+            background: rgba(139, 69, 19, 0.8); padding: 10px; border-radius: 15px;
+            border: 2px solid #D2B48C; min-height: 180px; position: relative; overflow: visible;
+        }
+        .player.active { border-color: #FFD700; box-shadow: 0 0 20px #FFD700; }
+        
+        .player-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .player-name { font-size: 1.1em; color: #FFD700; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .player-score { background: rgba(0, 0, 0, 0.3); padding: 2px 10px; border-radius: 20px; font-size: 1em; border: 1px solid #FFD700; min-width: 50px; text-align: center; }
+        
+        .player-hand { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; min-height: 90px; position: relative; }
+        
+        /* CARDS */
+        .card {
+            width: 55px; height: 85px; border-radius: 6px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.3s;
+            position: relative; font-size: 0.9em;
+        }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); }
+        .card.selected-match { border: 3px solid #00FFFF !important; box-shadow: 0 0 15px #00FFFF !important; transform: translateY(-10px) !important; z-index: 10; }
+        .card.face-down { background: linear-gradient(45deg, #8B0000, #B22222); color: white; border: 2px solid #FFD700; }
+        .card.face-up { background: white; color: black; border: 2px solid #333; }
+        .card.hearts, .card.diamonds { color: #FF0000 !important; }
+        .card.spades, .card.clubs { color: #000000 !important; }
+        .card-value { font-size: 1.2em; font-weight: bold; }
+        .card-suit { font-size: 1.5em; margin-top: 5px; }
+        .card.visible { border-color: #00FF00; box-shadow: 0 0 8px #00FF00; }
+        .card.animating { position: fixed !important; z-index: 1000 !important; pointer-events: none !important; transition: all 1s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+        .card.swap-indicator { border-color: #FFD700 !important; box-shadow: 0 0 15px #FFD700 !important; z-index: 10; }
+        .card.target-pulse { animation: targetPulse 1.5s infinite; border-color: #FF4500 !important; box-shadow: 0 0 15px #FF4500 !important; }
+        @keyframes targetPulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        .card-slot { width: 55px; height: 85px; position: relative; margin-bottom: 5px; }
+        .card-slot.empty { border: 2px dashed #FFD700; border-radius: 6px; background: rgba(255, 215, 0, 0.1); }
+        
+        /* CENTER AREA */
+        .game-center {
+            display: flex; justify-content: center; align-items: center;
+            margin: 20px 0; padding: 15px; background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px; border: 2px solid #8B4513; min-height: 140px;
+        }
+        .deck-area { display: flex; gap: 30px; align-items: center; justify-content: center; }
+        .deck, .discard-pile { position: relative; width: 70px; height: 105px; cursor: pointer; }
+        .deck-card, .discard-card {
+            position: absolute; width: 70px; height: 105px; border-radius: 8px; border: 2px solid #FFD700;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5em;
+        }
+        .deck-card { background: linear-gradient(45deg, #8B0000, #B22222); color: white; }
+        .discard-card { background: white; border: 2px solid #333; flex-direction: column; }
+        .deck-count, .discard-count {
+            position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7); padding: 2px 10px; border-radius: 10px; font-size: 0.8em; white-space: nowrap;
+        }
+        
+        /* RIGHT PANEL CONTROLS */
+        .game-controls { background: rgba(139, 69, 19, 0.9); padding: 15px; border-radius: 15px; border: 2px solid #D2B48C; }
+        .status { background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px; min-height: 80px; border: 1px solid #8B4513; }
+        .status h3 { color: #FFD700; margin-bottom: 5px; }
+        .actions { display: grid; gap: 12px; margin-bottom: 20px; }
+        
+        button {
+            color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1em;
+            cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.2);
+            font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.8); }
+        
+        #startGameBtn { background: linear-gradient(to bottom, #2b5876, #4e4376); border-color: #89a4ff; }
+        #swapBtn { background: linear-gradient(to bottom, #f12711, #f5af19); border-color: #ffd700; }
+        #useAbilityBtn { background: linear-gradient(to bottom, #834d9b, #d04ed6); border-color: #ff99ff; }
+        #matchBtn { background: linear-gradient(to bottom, #11998e, #38ef7d); border-color: #aaffcc; }
+        #lastRoundBtn { background: linear-gradient(to bottom, #cb2d3e, #ef473a); border-color: #ffcccc; box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
+        #discardBtn { background: linear-gradient(to bottom, #606c88, #3f4c6b); border-color: #aebcbf; }
+
+        .ability-target-btn {
+            background: linear-gradient(to bottom, #1E90FF, #00BFFF) !important;
+            border: 1px solid #ADD8E6 !important; color: white !important; padding: 10px 15px;
+            border-radius: 6px; margin: 5px; font-weight: bold;
+        }
+
+        /* LOG */
+        .game-log { background: rgba(139, 69, 19, 0.9); padding: 15px; border-radius: 15px; border: 2px solid #D2B48C; height: 400px; display: flex; flex-direction: column; }
+        .log-entries { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 5px; }
+        .log-entry { background: rgba(0, 0, 0, 0.2); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #FFD700; font-size: 0.85em; line-height: 1.3; }
+        .log-entry.player-you { border-left-color: #FFD700; }
+        .log-entry.player-ai1 { border-left-color: #FF6347; }
+        .log-entry.player-ai2 { border-left-color: #1E90FF; }
+        .log-entry.player-ai3 { border-left-color: #32CD32; }
+        .log-entry.match { color: #00FF00; }
+        .log-entry.last-round { color: #FF1493; font-weight: bold; }
+        .log-entry.penalty { color: #FF0000; font-weight: bold; }
+        
+        /* MODALS */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-content {
+            background: linear-gradient(135deg, #8B4513, #A0522D); padding: 20px;
+            border-radius: 15px; border: 3px solid #FFD700; max-width: 600px; width: 95%;
+            text-align: center; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+        .modal-buttons button { padding: 10px 20px; min-width: 100px; background: linear-gradient(to bottom, #1E90FF, #00BFFF); border: 1px solid #ADD8E6; }
+        .modal-buttons button.primary-action { background: linear-gradient(to bottom, #228B22, #32CD32); border-color: #90EE90; } 
+        .modal-buttons button.cancel-action { background: linear-gradient(to bottom, #B22222, #DC143C); border-color: #F08080; } 
+        
+        .drawn-card-area {
+            position: fixed; top: 70px; right: 10px; background: rgba(0, 0, 0, 0.8); padding: 10px;
+            border-radius: 10px; border: 2px solid #FFD700; z-index: 100; min-width: 90px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .drawn-card-label { font-size: 0.8em; color: #FFD700; margin-bottom: 5px; text-align: center; }
+        .animation-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1500; }
+        
+        .card-message {
+            position: absolute; background: rgba(0, 0, 0, 0.9); color: white;
+            padding: 15px 25px; border-radius: 30px; border: 2px solid #FFD700;
+            font-size: 1.2em; animation: fadeOut 2s forwards; z-index: 1501; white-space: nowrap;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translate(-50%, 0); }
+            70% { opacity: 1; transform: translate(-50%, -20px); }
+            100% { opacity: 0; transform: translate(-50%, -30px); }
+        }
+        
+        .last-round-announcement {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 69, 0, 0.95); color: white; padding: 20px;
+            border-radius: 15px; font-size: 1.5em; font-weight: bold;
+            border: 3px solid #FFD700; z-index: 2002; animation: lastRoundPulse 2s infinite;
+            text-align: center; width: 90%;
+        }
+        @keyframes lastRoundPulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .ai-thinking { animation: pulse 1s infinite; color: #00FFFF !important; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .settings { margin-top: 15px; }
+        .setting-option { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; }
+        
+        .target-card-display {
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 15px;
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+        }
+
+        /* RULES SECTION */
+        #rulesSection {
+            max-width: 1200px; margin: 40px auto 0; background: rgba(0,0,0,0.4);
+            border: 2px solid #8B4513; border-radius: 15px; padding: 25px; color: #ddd;
+        }
+        #rulesSection h2 { color: #FFD700; margin-bottom: 20px; border-bottom: 1px solid #8B4513; padding-bottom: 10px; }
+        .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        .rule-card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; }
+        .rule-card h3 { color: #FFD700; margin-bottom: 10px; }
+        .rule-card ul { padding-left: 20px; margin-bottom: 10px; }
+        .rule-card li { margin-bottom: 5px; }
+        .card-ref { font-weight: bold; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
+        
+        @media (max-width: 1200px) {
+            .game-layout { grid-template-columns: 1fr 300px; }
+            .game-log { grid-column: 1 / -1; height: 200px; }
+        }
+        @media (max-width: 800px) {
+            body { padding: 5px; }
+            header { flex-direction: column; gap: 10px; }
+            .header-left, .header-center, .header-right { width: 100%; text-align: center; justify-content: center; }
+            .game-layout { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+            .players-grid { grid-template-columns: 1fr 1fr; width: 100%; }
+            .game-center { width: 100%; margin: 10px 0; }
+            .game-controls { width: 100%; order: 2; }
+            .game-log { width: 100%; order: 3; }
+            button { padding: 15px; font-size: 1.1em; }
+            .player { padding: 5px; min-height: 160px; }
+            .card, .card-slot { width: 45px; height: 70px; }
+            .deck, .discard-pile, .deck-card, .discard-card { width: 60px; height: 90px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="difficulty-selector">
+                    <button class="difficulty-btn active" onclick="setDifficulty('easy')" id="easyBtn">Easy</button>
+                    <button class="difficulty-btn" onclick="setDifficulty('medium')" id="mediumBtn">Medium</button>
+                    <button class="difficulty-btn" onclick="setDifficulty('hard')" id="hardBtn">Hard</button>
+                </div>
+            </div>
+            <div class="header-center">
+                <h1>🍺 DUTCH PUB 🍺</h1>
+                <div class="subtitle">Strategic Card Game</div>
+            </div>
+            <div class="header-right">
+                <input type="text" id="playerNameInput" placeholder="Your Name" value="You">
+                <button id="setNameBtn" onclick="updatePlayerName()">Set</button>
+            </div>
+        </header>
+        
+        <div class="game-layout">
+            <div style="width: 100%">
+                <div class="players-grid" id="playersSection"></div>
+                
+                <div class="game-center">
+                    <div class="deck-area">
+                        <div class="deck" id="drawDeck" onclick="humanDrawCard()">
+                            <div class="deck-card">🂠</div>
+                            <div class="deck-count" id="deckCount">104</div>
+                        </div>
+                        <div class="discard-pile" id="discardPile"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="game-controls">
+                <div class="status">
+                    <h3>Game Status</h3>
+                    <p id="statusText">Setting up game...</p>
+                </div>
+                
+                <div class="actions">
+                    <button id="startGameBtn" onclick="startGame()">Start New Game</button>
+                    <button id="swapBtn" onclick="showSwapModal()" disabled>Swap with Hand</button>
+                    <button id="useAbilityBtn" onclick="useCardAbility()" disabled>Use Card Ability</button>
+                    <button id="matchBtn" onclick="showMatchModal()">Match & Play (Interrupt)</button>
+                    <button id="lastRoundBtn" onclick="callLastRound()" disabled>Call Last Round</button>
+                    <button id="discardBtn" onclick="discardCard()" disabled>Discard Drawn Card</button>
+                </div>
+                
+                <div class="settings">
+                    <div class="setting-option">
+                        <input type="checkbox" id="showLookedCards" onchange="toggleShowLookedCards()">
+                        <label for="showLookedCards">Show cards I've seen</label>
+                    </div>
+                </div>
+                
+                <div class="game-info" style="margin-top: 15px; border-top: 1px solid #aaa; padding-top: 10px; display: flex; justify-content: space-between;">
+                    <div class="info-item"><div class="info-value" id="turnCounter">1</div><div class="info-label">Turn</div></div>
+                    <div class="info-item"><div class="info-value" id="playersCount">4</div><div class="info-label">Players</div></div>
+                </div>
+            </div>
+            
+            <div class="game-log">
+                <h3>📜 Game Log</h3>
+                <div class="log-entries" id="gameLog"><div class="log-entry">Game ready.</div></div>
+            </div>
+        </div>
+        
+        <section id="rulesSection">
+            <h2>📜 How to Play</h2>
+            <div class="rules-grid">
+                <div class="rule-card">
+                    <h3>🎯 The Goal</h3>
+                    <p>The goal is to have the <strong>lowest total score</strong> in your hand (4 cards) when the game ends.</p>
+                    <p>You start with 4 face-down cards. You can only look at them when an ability allows it.</p>
+                </div>
+                
+                <div class="rule-card">
+                    <h3>🃏 Card Values</h3>
+                    <ul>
+                        <li><span class="card-ref">K</span> <strong>King:</strong> -1 point (Best card!)</li>
+                        <li><span class="card-ref">A</span> <strong>Ace:</strong> 1 point</li>
+                        <li><span class="card-ref">2-10</span>: Face value (e.g., 7 is 7 pts)</li>
+                        <li><span class="card-ref">J</span> <strong>Jack:</strong> 11 pts</li>
+                        <li><span class="card-ref">Q</span> <strong>Queen:</strong> 12 pts</li>
+                    </ul>
+                </div>
+                
+                <div class="rule-card">
+                    <h3>✨ Abilities</h3>
+                    <p>When you <strong>Draw</strong> these cards, you can discard them to use their power:</p>
+                    <ul>
+                        <li><span class="card-ref">6</span>: Look at one of <strong>your own</strong> cards.</li>
+                        <li><span class="card-ref">7</span>: Look at an <strong>opponent's</strong> card.</li>
+                        <li><span class="card-ref">J</span>: <strong>Blind Swap</strong> two cards (yours vs opponent) without looking first.</li>
+                        <li><span class="card-ref">Q</span>: <strong>Compare & Swap</strong> - Look at one of your own cards AND an opponent's card, then choose to swap or not.</li>
+                    </ul>
+                </div>
+                
+                <div class="rule-card">
+                    <h3>🔥 Gameplay</h3>
+                    <ul>
+                        <li><strong>Match:</strong> If the Discard Pile top card matches a card in your hand, you can slam it down anytime! (even out of turn).</li>
+                        <li><strong>Last Round:</strong> If you think you have the lowest score, call "Last Round". Everyone else gets 1 final turn.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <div class="drawn-card-area" id="drawnCardArea" style="display: none;">
+        <div class="drawn-card-label">Drawn:</div>
+        <div id="drawnCardDisplay"></div>
+    </div>
+    <div class="animation-overlay" id="animationOverlay"></div>
+    
+    <div class="modal" id="lookModal">
+        <div class="modal-content">
+            <h2 id="lookTitle">Look at Your Cards</h2>
+            <div id="lookOptions"></div>
+            <div class="modal-buttons">
+                <button class="primary-action" onclick="continueFromLook()">Continue</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="swapModal">
+        <div class="modal-content">
+            <h2>Swap Card</h2>
+            <p>Choose a card from your hand to swap with the drawn card:</p>
+            <div id="swapOptions"></div>
+            <div class="modal-buttons"><button class="cancel-action" onclick="hideModal('swapModal')">Cancel</button></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="matchModal">
+        <div class="modal-content">
+            <h2>Match & Play Cards</h2>
+            <div id="matchTargetDisplay" class="target-card-display"></div>
+            <p>Select player, then tap cards to select (Multi-select allowed).</p>
+            <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 0.9em; text-align: left;">
+                <p>✅ <strong>Correct Match:</strong> Card discarded. Hand size reduces.</p>
+                <p>⚠️ <strong>Matched Opponent:</strong> Discard theirs, Give yours + <strong>Skip Turn</strong>.</p>
+                <p>❌ <strong>Wrong Match:</strong> Draw 2 Penalty Cards + Skip Turn.</p>
+            </div>
+            <div id="matchPlayerSelection"></div>
+            <div id="matchOptions"></div>
+            <div class="modal-buttons">
+                <button class="cancel-action" onclick="hideModal('matchModal')">Cancel</button>
+                <button class="primary-action" id="playMatchBtn" onclick="playMatchedCards()" disabled>Play Selected Card(s)</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="abilityModal">
+        <div class="modal-content">
+            <h2 id="abilityTitle">Use Card Ability</h2>
+            <div id="abilityOptions"></div>
+            <div class="modal-buttons"><button class="cancel-action" onclick="hideModal('abilityModal')">Cancel</button></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="giveCardModal">
+        <div class="modal-content">
+            <h2>Give a Card</h2>
+            <p>Choose a card to give to <span id="penaltyTargetName" style="color:#FFD700"></span>:</p>
+            <div id="giveCardOptions"></div>
+            <div class="modal-buttons"><button class="cancel-action" onclick="hideModal('giveCardModal')">Cancel</button></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2>🎉 Game Over! 🎉</h2>
+            <div id="finalScores"></div>
+            <div style="margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px;">
+                <h4 style="margin-bottom: 10px; color: #FFD700;">Select Next Game Difficulty</h4>
+                <div class="difficulty-selector">
+                    <button class="difficulty-btn" onclick="setDifficulty('easy')" id="endEasyBtn">Easy</button>
+                    <button class="difficulty-btn" onclick="setDifficulty('medium')" id="endMediumBtn">Medium</button>
+                    <button class="difficulty-btn" onclick="setDifficulty('hard')" id="endHardBtn">Hard</button>
+                </div>
+            </div>
+            <div class="modal-buttons"><button class="primary-action" onclick="startGame()">Play Again</button></div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME CONSTANTS & VARIABLES ---
+        let deck = [];
+        let discardPile = [];
+        let players = [];
+        let currentPlayerIndex = 0;
+        let drawnCard = null;
+        let lastRoundCalled = false;
+        let lastRoundPlayer = null;
+        let gameActive = false;
+        let showLookedCards = false;
+        let turnCounter = 1;
+        let skipTurns = {};
+        let initialLookCount = 0;
+        let gameLog = [];
+        let difficulty = 'easy';
+        let gameVersion = 0; 
+        
+        // Ability Logic
+        let abilityTargetPlayerIndex = null;
+        let queenOwnCardIndex = null, queenOpponentPlayerIndex = null, queenOpponentCardIndex = null;
+        let jackOwnCardIndex = null, jackOpponentPlayerIndex = null, jackOpponentCardIndex = null;
+        
+        let isGamePaused = false;
+        let selectedMatchPlayerIndex = null;
+        let selectedMatchCardIndices = new Set();
+        let penaltyTargetPlayerIndex = null;
+        
+        const aiFirstNames = ["Tipsy", "Salty", "Jolly", "Grumpy", "Lucky", "Drunk", "Sober", "Lager", "Ale", "Stout", "Pilsner", "Cider"];
+        const aiLastNames = ["Steve", "Dave", "Pete", "Larry", "Bob", "Alice", "Mary", "Sue", "Tom", "Jerry", "Moe", "Barney"];
+
+        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        
+        const pointValues = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': -1 };
+
+        // --- CLASSES ---
+        class Card {
+            constructor(value, suit) {
+                this.value = value;
+                this.suit = suit;
+                this.faceUp = false;
+                this.visibleTo = []; // Stores Player IDs
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+            getPoints() { return pointValues[this.value] || 0; }
+            hasAbility() { return ['6', '7', 'J', 'Q'].includes(this.value); }
+            getAbility() {
+                switch(this.value) {
+                    case '6': return 'look_own';
+                    case '7': return 'look_opponent';
+                    case 'J': return 'blind_swap';
+                    case 'Q': return 'look_then_swap'; 
+                    default: return null;
+                }
+            }
+            getDisplay() {
+                const suitSymbols = { 'hearts': '♥', 'diamonds': '♦', 'clubs': '♣', 'spades': '♠' };
+                return { value: this.value, symbol: suitSymbols[this.suit], color: (this.suit === 'hearts' || this.suit === 'diamonds') ? 'red' : 'black', points: this.getPoints() };
+            }
+            matches(otherCard) { return otherCard && this.value === otherCard.value; }
+        }
+
+        class Player {
+            constructor(name, isAI = false, index = 0) {
+                this.name = name;
+                this.isAI = isAI;
+                this.index = index;
+                this.id = isAI ? `ai_${index}_${Math.random()}` : `human_player`;
+                this.hand = []; 
+                this.hasDrawnCard = false;
+                this.lastSwapIndex = -1;
+                this.memory = { ownCards: {}, opponentCards: {} };
+            }
+            
+            getHandSize() { return this.hand.length; }
+            
+            rememberCard(cardId, knownValue) {
+                this.memory.ownCards[cardId] = knownValue;
+            }
+            
+            calculateTotalScore() {
+                return this.hand.reduce((sum, card) => sum + card.getPoints(), 0);
+            }
+            
+            // AI HELPERS
+            getKnownScore() {
+                return this.hand.reduce((sum, card) => {
+                    const known = this.memory.ownCards[card.id];
+                    return sum + (known !== undefined ? known : 7); // Assume unknown cards are ~7 (avg)
+                }, 0);
+            }
+        }
+
+        function getRandomAIName() {
+            return `${aiFirstNames[Math.floor(Math.random() * aiFirstNames.length)]} ${aiLastNames[Math.floor(Math.random() * aiLastNames.length)]}`;
+        }
+
+        // --- SETUP & UTILS ---
+        function initGame() {
+            players = [
+                new Player(document.getElementById('playerNameInput').value || "You", false, 0),
+                new Player(getRandomAIName(), true, 1),
+                new Player(getRandomAIName(), true, 2),
+                new Player(getRandomAIName(), true, 3)
+            ];
+            createDeck();
+            renderGame();
+            updateStatus("Click 'Start New Game' to begin!");
+        }
+
+        function updatePlayerName() {
+            const newName = document.getElementById('playerNameInput').value.trim() || "You";
+            if(players[0]) {
+                players[0].name = newName;
+                renderGame();
+                addToLog(`Player name changed to ${newName}`);
+            }
+        }
+
+        function createDeck() {
+            deck = [];
+            discardPile = [];
+            for (let i = 0; i < 2; i++) {
+                for (const suit of suits) {
+                    for (const value of values) deck.push(new Card(value, suit));
+                }
+            }
+            // Shuffle
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            document.querySelectorAll('.header-left .difficulty-btn').forEach(btn => btn.classList.remove('active'));
+            const headerBtn = document.getElementById(level+'Btn');
+            if(headerBtn) headerBtn.classList.add('active');
+            
+            document.querySelectorAll('#gameOverModal .difficulty-btn').forEach(btn => btn.classList.remove('active'));
+            const endBtn = document.getElementById('end'+level.charAt(0).toUpperCase() + level.slice(1)+'Btn');
+            if(endBtn) endBtn.classList.add('active');
+        }
+
+        // --- GAME LOOP ---
+        async function startGame() {
+            try {
+                hideModal('gameOverModal'); hideModal('matchModal'); hideModal('swapModal');
+                document.getElementById('animationOverlay').innerHTML = '';
+                gameVersion++; isGamePaused = false;
+                
+                const userName = document.getElementById('playerNameInput').value.trim() || "You";
+                players = [
+                    new Player(userName, false, 0),
+                    new Player(getRandomAIName(), true, 1),
+                    new Player(getRandomAIName(), true, 2),
+                    new Player(getRandomAIName(), true, 3)
+                ];
+
+                createDeck();
+                currentPlayerIndex = Math.floor(Math.random() * players.length);
+                lastRoundCalled = false; lastRoundPlayer = null; gameActive = true; drawnCard = null;
+                turnCounter = 1; initialLookCount = 0; gameLog = [];
+                skipTurns = {}; players.forEach((_, i) => skipTurns[i] = 0);
+                
+                players.forEach((player) => {
+                    for (let i = 0; i < 4; i++) {
+                        const card = deck.pop();
+                        player.hand.push(card); 
+                        if (player.isAI && i < 2) player.rememberCard(card.id, card.getPoints());
+                    }
+                });
+                
+                const initialCard = deck.pop();
+                discardPile.push(initialCard);
+                initialCard.faceUp = true;
+                
+                addToLog("=== NEW GAME STARTED ===", "action", 0);
+                addToLog(`${players[currentPlayerIndex].name} goes first.`, "turn", currentPlayerIndex);
+                
+                renderGame();
+                updateGameControls();
+                showInitialLookModal();
+            } catch (e) {
+                console.error("Error starting game:", e);
+                window.location.reload();
+            }
+        }
+
+        function showInitialLookModal() {
+            const modal = document.getElementById('lookModal');
+            const optionsDiv = document.getElementById('lookOptions');
+            const player = players[0];
+            initialLookCount = 0;
+            
+            let html = `<p>Tap 2 cards to peek at them:</p><div style="display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">`;
+            player.hand.forEach((card, index) => {
+                if (index < 4) {
+                    html += `<div class="card face-down initial-look" data-index="${index}" data-revealed="false" onclick="lookAtInitialCard(this)" style="cursor: pointer;">?</div>`;
+                }
+            });
+            html += `</div><p>Seen: <span id="lookedCount">0</span>/2</p>`;
+            optionsDiv.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function lookAtInitialCard(element) {
+            if (initialLookCount >= 2) return;
+            if (element.dataset.revealed === "true") return;
+            
+            const player = players[0];
+            const index = parseInt(element.dataset.index);
+            const card = player.hand[index];
+            
+            card.visibleTo.push(player.id);
+            element.dataset.revealed = "true";
+            initialLookCount++;
+            
+            const display = card.getDisplay();
+            element.innerHTML = `<div class="card-value">${display.value}</div><div class="card-suit" style="color: ${display.color}">${display.symbol}</div>`;
+            element.classList.remove('face-down');
+            element.classList.add('face-up', card.suit);
+            document.getElementById('lookedCount').textContent = initialLookCount;
+        }
+
+        function continueFromLook() {
+            if (initialLookCount < 2) { alert("Please look at 2 cards first!"); return; }
+            hideModal('lookModal');
+            renderGame();
+            updateStatus(`${players[currentPlayerIndex].name}'s turn.`);
+            if (players[currentPlayerIndex].isAI) {
+                const currentVer = gameVersion;
+                setTimeout(() => { if(currentVer === gameVersion) aiTurn(); }, 1000);
+            }
+        }
+
+        // --- HUMAN ACTIONS ---
+        async function humanDrawCard() {
+            if (!gameActive || players[currentPlayerIndex].isAI || drawnCard || isGamePaused) return;
+            if (skipTurns[currentPlayerIndex] > 0) { endTurn(); return; }
+            if (deck.length === 0) { updateStatus("Deck Empty!"); return; }
+            
+            drawnCard = deck.pop();
+            drawnCard.faceUp = true;
+            drawnCard.visibleTo.push(players[0].id); 
+            players[0].hasDrawnCard = true;
+            
+            addToLog(`You drew ${drawnCard.value}`, "draw", 0);
+            await animateCardDraw(drawnCard, null, 'hand', true, true);
+            showDrawnCard();
+            updateGameControls();
+            updateStatus(`You drew ${drawnCard.value}.`);
+        }
+
+        async function discardCard() {
+            if (!drawnCard || isGamePaused) return;
+            await animateCardDraw(drawnCard, currentPlayerIndex, null, true);
+            discardPile.push(drawnCard);
+            drawnCard.faceUp = true;
+            drawnCard = null;
+            players[currentPlayerIndex].hasDrawnCard = false;
+            hideDrawnCard();
+            addToLog(`You discarded`, "discard", 0);
+            await new Promise(r => setTimeout(r, 500));
+            endTurn();
+        }
+
+        function showSwapModal() {
+            if(isGamePaused) return;
+            const modal = document.getElementById('swapModal');
+            const optionsDiv = document.getElementById('swapOptions');
+            const player = players[currentPlayerIndex];
+            
+            let html = '<div style="display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">';
+            player.hand.forEach((card, index) => {
+                const isVisible = showLookedCards && card.visibleTo.includes(player.id);
+                const isSwap = player.lastSwapIndex === index;
+                const display = card.getDisplay();
+                html += `
+                    <div class="card ${isVisible ? 'face-up ' + card.suit : 'face-down'} ${isSwap ? 'swap-indicator' : ''}" 
+                         onclick="swapCard(${index})" style="cursor: pointer;">
+                        ${isVisible ? `<div class="card-value">${display.value}</div><div class="card-suit" style="color: ${display.color}">${display.symbol}</div>` : '?'}
+                    </div>`;
+            });
+            html += '</div>';
+            optionsDiv.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        async function swapCard(index) {
+            const player = players[currentPlayerIndex];
+            if (!player || !drawnCard) { hideModal('swapModal'); return; }
+            const oldCard = player.hand[index];
+            
+            await animateCardDraw(oldCard, currentPlayerIndex, null, true);
+            player.hand[index] = drawnCard;
+            drawnCard.faceUp = false;
+            discardPile.push(oldCard);
+            oldCard.faceUp = true;
+            
+            drawnCard = null;
+            player.hasDrawnCard = false;
+            hideDrawnCard();
+            hideModal('swapModal');
+            addToLog(`You swapped a card`, "action", 0);
+            renderGame();
+            await new Promise(r => setTimeout(r, 1000));
+            endTurn();
+        }
+
+        // --- ENHANCED AI LOGIC ---
+        async function aiTurn() {
+            const currentVer = gameVersion;
+            while(isGamePaused) {
+                if(gameVersion !== currentVer) return;
+                await new Promise(r => setTimeout(r, 500));
+            }
+            if(gameVersion !== currentVer) return;
+
+            const ai = players[currentPlayerIndex];
+            if (skipTurns[currentPlayerIndex] > 0) { endTurn(); return; }
+
+            // 0. CHECK LAST ROUND CALL (Harder Difficulty logic)
+            if (!lastRoundCalled && deck.length > 5) {
+                const knownScore = ai.getKnownScore();
+                let threshold = difficulty === 'hard' ? 7 : (difficulty === 'medium' ? 5 : 0);
+                // On easy, never call last round basically.
+                if (knownScore <= threshold && turnCounter > 4) {
+                    callLastRound();
+                    return; // Wait for endTurn in callLastRound
+                }
+            }
+
+            // 1. MATCH CHECK
+            if (discardPile.length > 0) {
+                const topCard = discardPile[discardPile.length - 1];
+                // Check memory for matches
+                const matchIdx = ai.hand.findIndex(c => c && c.matches(topCard) && ai.memory.ownCards[c.id] !== undefined);
+                
+                // Difficulty check: Easy misses matches sometimes
+                const chance = difficulty === 'hard' ? 1.0 : (difficulty === 'medium' ? 0.7 : 0.3);
+                
+                if (matchIdx !== -1 && Math.random() < chance) {
+                    const matchCard = ai.hand[matchIdx];
+                    ai.hand.splice(matchIdx, 1);
+                    await animateCardDraw(matchCard, currentPlayerIndex, null, true);
+                    discardPile.push(matchCard);
+                    matchCard.faceUp = true;
+                    addToLog(`${ai.name} MATCHED and played ${matchCard.value}!`, "match", currentPlayerIndex);
+                    await showMessage(`${ai.name} Matched!`, 1500);
+                    skipTurns[currentPlayerIndex] = (skipTurns[currentPlayerIndex] || 0) + 1;
+                    renderGame();
+                    endTurn();
+                    return;
+                }
+            }
+
+            // Visual Thinking
+            updateStatus(`${ai.name} is thinking...`);
+            const pElem = document.querySelector(`.player:nth-child(${currentPlayerIndex + 1}) .player-name`);
+            if(pElem) pElem.classList.add('ai-thinking');
+            await new Promise(r => setTimeout(r, 1200));
+            if(pElem) pElem.classList.remove('ai-thinking');
+
+            // 2. DRAW
+            if (deck.length === 0) { endTurn(); return; }
+            drawnCard = deck.pop();
+            drawnCard.faceUp = false; 
+            ai.hasDrawnCard = true;
+            
+            addToLog(`${ai.name} drew a card`, "draw", currentPlayerIndex);
+            await animateCardDraw(drawnCard, null, currentPlayerIndex, false, true);
+            renderGame();
+            
+            // 3. ABILITY USE OR DISCARD DECISION
+            let usedAbility = false;
+            if (drawnCard.hasAbility()) {
+                const useChance = difficulty === 'hard' ? 0.95 : (difficulty === 'medium' ? 0.7 : 0.4);
+                if (Math.random() < useChance) {
+                    await aiUseAbility(ai, drawnCard);
+                    usedAbility = true;
+                }
+            }
+            
+            // 4. SWAP OR DISCARD (If ability wasn't used)
+            if (!usedAbility) {
+                await new Promise(r => setTimeout(r, 800));
+                
+                let bestSwapIndex = -1;
+                let worstCardValue = -99;
+                
+                // Find worst card in hand (that we know of)
+                for(let i=0; i<ai.hand.length; i++) {
+                    if(!ai.hand[i]) continue;
+                    const known = ai.memory.ownCards[ai.hand[i].id];
+                    const val = known !== undefined ? known : 7;
+                    if (val > worstCardValue) {
+                        worstCardValue = val;
+                        bestSwapIndex = i;
+                    }
+                }
+                
+                // If drawn card < worst card in hand
+                if (bestSwapIndex !== -1 && drawnCard.getPoints() < worstCardValue) {
+                    const oldCard = ai.hand[bestSwapIndex];
+                    ai.memory.ownCards[drawnCard.id] = drawnCard.getPoints();
+                    
+                    await animateCardDraw(oldCard, currentPlayerIndex, null, true);
+                    ai.hand[bestSwapIndex] = drawnCard;
+                    drawnCard.faceUp = false;
+                    discardPile.push(oldCard);
+                    oldCard.faceUp = true;
+                    ai.lastSwapIndex = bestSwapIndex;
+                    addToLog(`${ai.name} swapped card`, "swap", currentPlayerIndex);
+                    await showMessage(`${ai.name} swapped!`, 1000);
+                } else {
+                    await animateCardDraw(drawnCard, currentPlayerIndex, null, true);
+                    discardPile.push(drawnCard);
+                    drawnCard.faceUp = true;
+                    addToLog(`${ai.name} discarded`, "discard", currentPlayerIndex);
+                }
+            }
+            
+            drawnCard = null; ai.hasDrawnCard = false;
+            renderGame();
+            await new Promise(r => setTimeout(r, 1000));
+            endTurn();
+        }
+
+        async function aiUseAbility(ai, card) {
+            updateStatus(`${ai.name} uses ${card.value} ability`);
+            await new Promise(r => setTimeout(r, 1000));
+            
+            if (card.value === '6') {
+                // Look Own: Find unknown card
+                const unknownIndices = ai.hand.map((c, i) => c && !ai.memory.ownCards[c.id] ? i : -1).filter(i => i !== -1);
+                const idx = unknownIndices.length > 0 ? unknownIndices[0] : Math.floor(Math.random()*ai.hand.length);
+                ai.memory.ownCards[ai.hand[idx].id] = ai.hand[idx].getPoints();
+                const slot = document.querySelector(`.player:nth-child(${currentPlayerIndex+1}) .card-slot:nth-child(${idx+1}) .card`);
+                if(slot) { slot.classList.add('target-pulse'); setTimeout(()=>slot.classList.remove('target-pulse'), 1500); }
+                await showMessage(`${ai.name} peeked own card.`, 1500);
+            }
+            else if (card.value === '7') {
+                // Look Opponent: Target human
+                const targetIdx = 0; 
+                const tHand = players[targetIdx].hand;
+                if(tHand.length > 0) {
+                    const rIdx = Math.floor(Math.random()*tHand.length);
+                    const seenCard = tHand[rIdx];
+                    ai.memory.opponentCards[seenCard.id] = seenCard.getPoints(); // Remember
+                    
+                    const slot = document.querySelector(`.player:nth-child(${targetIdx+1}) .card-slot:nth-child(${rIdx+1}) .card`);
+                    if(slot) { slot.classList.add('target-pulse'); setTimeout(()=>slot.classList.remove('target-pulse'), 1500); }
+                    await showMessage(`${ai.name} peeked your card.`, 1500);
+                }
+            }
+            else if (card.value === 'J') {
+                // Jack: Blind Swap
+                const targetIdx = 0; 
+                const aiHand = ai.hand;
+                const tHand = players[targetIdx].hand;
+                
+                // Swap AI's worst KNOWN card (or random if unknown) with random Opponent card
+                let myWorstIdx = Math.floor(Math.random() * aiHand.length);
+                let worstVal = -100;
+                aiHand.forEach((c, i) => {
+                   const v = ai.memory.ownCards[c.id];
+                   if(v !== undefined && v > worstVal) { worstVal = v; myWorstIdx = i; }
+                });
+
+                const tCardIdx = Math.floor(Math.random() * tHand.length);
+                const aiCard = aiHand[myWorstIdx];
+                const tCard = tHand[tCardIdx];
+                
+                aiHand[myWorstIdx] = tCard;
+                tHand[tCardIdx] = aiCard;
+                delete ai.memory.ownCards[aiCard.id]; 
+                
+                await animateCardDraw(aiCard, currentPlayerIndex, targetIdx, false);
+                await animateCardDraw(tCard, targetIdx, currentPlayerIndex, false);
+                addToLog(`${ai.name} swapped with you!`, "ability", currentPlayerIndex);
+            }
+            else if (card.value === 'Q') {
+                // Queen: Compare & Swap
+                const targetIdx = 0; 
+                const aiHand = ai.hand;
+                const tHand = players[targetIdx].hand;
+                
+                // 1. Peek at own worst card
+                let myWorstIdx = 0; 
+                let worstVal = -100;
+                aiHand.forEach((c, i) => {
+                   const v = ai.memory.ownCards[c.id] || 7; // guess 7 if unknown
+                   if(v > worstVal) { worstVal = v; myWorstIdx = i; }
+                });
+                
+                // 2. Peek at opponent random card
+                const tCardIdx = Math.floor(Math.random() * tHand.length);
+                const tCardVal = tHand[tCardIdx].getPoints();
+                
+                // 3. Decide: If Opponent Card is Lower (Better) -> Swap
+                if (tCardVal < worstVal) {
+                    const aiCard = aiHand[myWorstIdx];
+                    const tCard = tHand[tCardIdx];
+                    
+                    aiHand[myWorstIdx] = tCard;
+                    tHand[tCardIdx] = aiCard;
+                    
+                    // Update memory: I know I have the new card now
+                    ai.memory.ownCards[tCard.id] = tCardVal; 
+                    
+                    await animateCardDraw(aiCard, currentPlayerIndex, targetIdx, false);
+                    await animateCardDraw(tCard, targetIdx, currentPlayerIndex, false);
+                    addToLog(`${ai.name} used Queen to swap!`, "ability", currentPlayerIndex);
+                    await showMessage(`${ai.name} swapped!`, 1500);
+                } else {
+                    addToLog(`${ai.name} used Queen but kept cards`, "ability", currentPlayerIndex);
+                    await showMessage(`${ai.name} didn't swap.`, 1500);
+                }
+            }
+            
+            // Discard the ability card
+            await animateCardDraw(card, currentPlayerIndex, null, true);
+            discardPile.push(card);
+            card.faceUp = true;
+        }
+
+        // --- ABILITIES (HUMAN) ---
+        function useCardAbility() {
+            if (!drawnCard || !drawnCard.hasAbility() || isGamePaused) return;
+            const ability = drawnCard.getAbility();
+            showAbilityModal(ability);
+        }
+
+        function showAbilityModal(ability) {
+            const modal = document.getElementById('abilityModal');
+            const optionsDiv = document.getElementById('abilityOptions');
+            const player = players[currentPlayerIndex];
+            
+            let html = '';
+            switch(ability) {
+                case 'look_own':
+                    html = `<p>Look at your own card:</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+                    player.hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'useLookOwnAbility', player); });
+                    html += `</div>`;
+                    break;
+                case 'look_opponent':
+                    html = `<p>Choose opponent:</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">`;
+                    players.forEach((p, i) => { if (i !== currentPlayerIndex) html += `<button class="ability-target-btn" onclick="useLookOpponentAbility(${i})">${p.name}</button>`; });
+                    html += `</div>`;
+                    break;
+                case 'blind_swap':
+                    html = `<p><strong>Step 1:</strong> Pick your card to swap:</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+                    player.hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'jackStep1_SelectOwn', player); });
+                    html += `</div>`;
+                    break;
+                case 'look_then_swap':
+                    html = `<p><strong>Step 1:</strong> Pick your card to compare:</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+                    player.hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'queenStep1_LookOwn', player); });
+                    html += `</div>`;
+                    break;
+            }
+            optionsDiv.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function renderAbilityCardOption(card, index, funcName, ownerPlayer) {
+            const isKnown = showLookedCards && card.visibleTo.includes(players[0].id);
+            const display = card.getDisplay();
+            const isSwap = ownerPlayer && ownerPlayer.lastSwapIndex === index && ownerPlayer.isAI;
+            return `<div class="card ${isKnown?'face-up '+card.suit:'face-down'} ${isSwap?'swap-indicator':''}" id="abilityCard-${index}" onclick="${funcName}(${index})" style="width:50px;height:75px;margin:5px;">${isKnown ? `<div class="card-value">${display.value}</div><div class="card-suit" style="color:${display.color}">${display.symbol}</div>` : '?'}</div>`;
+        }
+        
+        async function useLookOwnAbility(idx) {
+            const c = players[0].hand[idx];
+            c.visibleTo.push(players[0].id);
+            await showMessage(`It's a ${c.value}${c.getDisplay().symbol}`, 1500);
+            await completeAbility();
+        }
+        
+        async function useLookOpponentAbility(pIdx) {
+            abilityTargetPlayerIndex = pIdx;
+            const target = players[pIdx];
+            const div = document.getElementById('abilityOptions');
+            let html = `<p>Pick ${target.name}'s card:</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+            target.hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'lookAtOpponentCard', target); });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+        
+        async function lookAtOpponentCard(idx) {
+            const c = players[abilityTargetPlayerIndex].hand[idx];
+            c.visibleTo.push(players[0].id);
+            const el = document.getElementById(`abilityCard-${idx}`);
+            const display = c.getDisplay();
+            if(el) {
+                el.className = `card face-up ${c.suit}`;
+                el.innerHTML = `<div class="card-value">${display.value}</div><div class="card-suit" style="color:${display.color}">${display.symbol}</div>`;
+            }
+            renderGame();
+            await new Promise(r => setTimeout(r, 2000));
+            await completeAbility();
+        }
+        
+        // JACK STEPS
+        async function jackStep1_SelectOwn(idx) {
+            jackOwnCardIndex = idx;
+            const div = document.getElementById('abilityOptions');
+            let html = `<p><strong>Step 2:</strong> Pick opponent:</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">`;
+            players.forEach((p, i) => { if (i !== 0) html += `<button class="ability-target-btn" onclick="jackStep2_SelectOpp(${i})">${p.name}</button>`; });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+        async function jackStep2_SelectOpp(idx) {
+            jackOpponentPlayerIndex = idx;
+            const div = document.getElementById('abilityOptions');
+            let html = `<p>Pick card to swap with (Blind):</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+            players[idx].hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'jackStep3_DoSwap', players[idx]); });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+        async function jackStep3_DoSwap(idx) {
+            jackOpponentCardIndex = idx;
+            const myC = players[0].hand[jackOwnCardIndex];
+            const oppC = players[jackOpponentPlayerIndex].hand[jackOpponentCardIndex];
+            players[0].hand[jackOwnCardIndex] = oppC;
+            players[jackOpponentPlayerIndex].hand[jackOpponentCardIndex] = myC;
+            addToLog(`You blind swapped with ${players[jackOpponentPlayerIndex].name}`, "ability", 0);
+            await showMessage("Swapped Blind!", 1000);
+            await completeAbility();
+        }
+
+        // QUEEN STEPS
+        async function queenStep1_LookOwn(idx) {
+            queenOwnCardIndex = idx;
+            const c = players[0].hand[idx];
+            c.visibleTo.push(players[0].id);
+            await showMessage(`Yours: ${c.value}${c.getDisplay().symbol}`, 1000);
+            const div = document.getElementById('abilityOptions');
+            let html = `<p><strong>Step 2:</strong> Pick opponent:</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">`;
+            players.forEach((p, i) => { if (i !== 0) html += `<button class="ability-target-btn" onclick="queenStep2_SelectOpp(${i})">${p.name}</button>`; });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+        async function queenStep2_SelectOpp(idx) {
+            queenOpponentPlayerIndex = idx;
+            const div = document.getElementById('abilityOptions');
+            let html = `<p>Pick card:</p><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+            players[idx].hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'queenStep3_LookOpp', players[idx]); });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+        async function queenStep3_LookOpp(idx) {
+            queenOpponentCardIndex = idx;
+            const opp = players[queenOpponentPlayerIndex];
+            const c = opp.hand[idx];
+            c.visibleTo.push(players[0].id);
+            await showMessage(`Theirs: ${c.value}${c.getDisplay().symbol}`, 1000);
+            const myCard = players[0].hand[queenOwnCardIndex];
+            const myD = myCard.getDisplay();
+            const theirD = c.getDisplay();
+            const div = document.getElementById('abilityOptions');
+            div.innerHTML = `
+                <p>Swap cards?</p>
+                <div style="display:flex; gap:20px; justify-content:center; margin: 20px 0;">
+                    <div><div class="card face-up ${myCard.suit}" style="width:60px; height:90px;"><div class="card-value">${myD.value}</div><div class="card-suit" style="color:${myD.color}">${myD.symbol}</div></div></div>
+                    <div style="align-self:center; font-size:2em;">⇄</div>
+                    <div><div class="card face-up ${c.suit}" style="width:60px; height:90px;"><div class="card-value">${theirD.value}</div><div class="card-suit" style="color:${theirD.color}">${theirD.symbol}</div></div></div>
+                </div>
+                <div class="modal-buttons"><button class="primary-action" onclick="queenSwap(true)">Yes, Swap</button><button class="cancel-action" onclick="queenSwap(false)">No, Keep</button></div>`;
+        }
+        async function queenSwap(doSwap) {
+            if(doSwap) {
+                const myC = players[0].hand[queenOwnCardIndex];
+                const oppC = players[queenOpponentPlayerIndex].hand[queenOpponentCardIndex];
+                players[0].hand[queenOwnCardIndex] = oppC;
+                players[queenOpponentPlayerIndex].hand[queenOpponentCardIndex] = myC;
+                addToLog("Swapped cards with opponent", "ability", 0);
+            }
+            await completeAbility();
+        }
+
+        async function completeAbility() {
+            discardPile.push(drawnCard);
+            drawnCard.faceUp = true;
+            drawnCard = null;
+            players[currentPlayerIndex].hasDrawnCard = false;
+            hideDrawnCard();
+            hideModal('abilityModal');
+            renderGame();
+            await new Promise(r => setTimeout(r, 1000));
+            endTurn();
+        }
+
+        // --- MATCH & PLAY ---
+        function showMatchModal() {
+            if(!gameActive) return;
+            isGamePaused = true; selectedMatchPlayerIndex = null; selectedMatchCardIndices.clear(); 
+            const modal = document.getElementById('matchModal');
+            const topCard = discardPile[discardPile.length-1];
+            if(topCard) {
+                const d = topCard.getDisplay();
+                document.getElementById('matchTargetDisplay').innerHTML = `<div style="color:#FFD700; font-weight:bold;">Match This:</div><div class="card face-up ${topCard.suit}" style="width: 50px; height: 75px;"><div class="card-value" style="color:${d.color}">${d.value}</div><div class="card-suit" style="color:${d.color}">${d.symbol}</div></div>`;
+            }
+            const pDiv = document.getElementById('matchPlayerSelection');
+            document.getElementById('playMatchBtn').disabled = true;
+            document.getElementById('matchOptions').innerHTML = '';
+            let html = `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">`;
+            players.forEach((p, i) => { if(p.getHandSize()>0) html += `<button class="ability-target-btn" onclick="selectMatchPlayer(${i})">${p.name}</button>`; });
+            html += `</div>`;
+            pDiv.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function selectMatchPlayer(pIdx) {
+            selectedMatchPlayerIndex = pIdx; selectedMatchCardIndices.clear();
+            document.getElementById('playMatchBtn').disabled = true;
+            const p = players[pIdx];
+            const div = document.getElementById('matchOptions');
+            let html = `<div style="display:flex;gap:5px;justify-content:center;margin-top:10px;flex-wrap:wrap;">`;
+            p.hand.forEach((c, i) => {
+                if(c) {
+                    const isKnown = showLookedCards && c.visibleTo.includes(players[0].id);
+                    const isSwap = p.lastSwapIndex === i && p.isAI;
+                    const display = c.getDisplay();
+                    html += `<div class="card ${isKnown?'face-up '+c.suit:'face-down'} ${isSwap?'swap-indicator':''}" id="matchCard-${i}" onclick="toggleMatchCard(${i})" style="width:50px;height:75px;border:2px solid transparent;margin:5px;">${isKnown ? `<div class="card-value">${display.value}</div><div class="card-suit" style="color:${display.color}">${display.symbol}</div>` : '?'}</div>`;
+                }
+            });
+            html += `</div>`;
+            div.innerHTML = html;
+        }
+
+        function toggleMatchCard(cIdx) {
+            const el = document.getElementById(`matchCard-${cIdx}`);
+            if (selectedMatchCardIndices.has(cIdx)) { selectedMatchCardIndices.delete(cIdx); el.classList.remove('selected-match'); } 
+            else { selectedMatchCardIndices.add(cIdx); el.classList.add('selected-match'); }
+            document.getElementById('playMatchBtn').disabled = selectedMatchCardIndices.size === 0;
+            document.getElementById('playMatchBtn').innerText = `Play Selected (${selectedMatchCardIndices.size})`;
+        }
+
+        async function playMatchedCards() {
+            const p = players[selectedMatchPlayerIndex];
+            const top = discardPile[discardPile.length-1];
+            const indices = Array.from(selectedMatchCardIndices).sort((a, b) => b - a);
+            const allMatch = indices.every(idx => p.hand[idx].matches(top));
+            hideModal('matchModal');
+
+            if (allMatch) {
+                for (const idx of indices) {
+                    const c = p.hand[idx];
+                    await animateCardDraw(c, selectedMatchPlayerIndex, null, true);
+                    p.hand.splice(idx, 1);
+                    discardPile.push(c);
+                    c.faceUp = true;
+                }
+                if (selectedMatchPlayerIndex !== 0) {
+                    penaltyTargetPlayerIndex = selectedMatchPlayerIndex;
+                    addToLog(`Matched ${p.name}! Give them a card.`, "match", 0);
+                    showGiveCardModal();
+                    if (currentPlayerIndex !== 0) skipTurns[0] = (skipTurns[0] || 0) + 1;
+                } else {
+                    addToLog(`Matched ${indices.length} card(s)!`, "match", 0);
+                    if (currentPlayerIndex === 0) { await showMessage("Played! Turn Ends.", 1500); endTurn(); } 
+                    else { await showMessage("Interrupted! Skipped next turn.", 1500); skipTurns[0] = (skipTurns[0] || 0) + 1; }
+                }
+            } else {
+                addToLog("WRONG MATCH! +2 Cards", "penalty", 0);
+                await showMessage("Wrong Match!", 1500);
+                skipTurns[0] = (skipTurns[0] || 0) + 1;
+                for(let i=0; i<2; i++) {
+                    if(deck.length>0) {
+                        const pen = deck.pop(); players[0].hand.push(pen);
+                        await animateCardDraw(pen, null, 0, false, true);
+                    }
+                }
+                if(currentPlayerIndex === 0) endTurn();
+            }
+            renderGame();
+        }
+
+        function showGiveCardModal() {
+            const modal = document.getElementById('giveCardModal');
+            document.getElementById('penaltyTargetName').textContent = players[penaltyTargetPlayerIndex].name;
+            const div = document.getElementById('giveCardOptions');
+            let html = `<div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">`;
+            players[0].hand.forEach((c, i) => { if(c) html += renderAbilityCardOption(c, i, 'giveCardToOpponent', players[0]); });
+            html += `</div>`;
+            div.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        async function giveCardToOpponent(idx) {
+            const c = players[0].hand[idx];
+            const target = players[penaltyTargetPlayerIndex];
+            const isKnown = c.visibleTo.includes(players[0].id);
+            hideModal('giveCardModal');
+            await animateCardDraw(c, 0, penaltyTargetPlayerIndex, isKnown);
+            players[0].hand.splice(idx, 1);
+            target.hand.push(c);
+            addToLog(`Gave card to ${target.name}`, "penalty", 0);
+            renderGame();
+            if(currentPlayerIndex === 0) endTurn();
+        }
+
+        async function callLastRound() {
+            if (drawnCard || isGamePaused) { alert("You cannot call Last Round right now."); return; }
+            lastRoundCalled = true; lastRoundPlayer = players[currentPlayerIndex];
+            addToLog(`${players[currentPlayerIndex].name} called LAST ROUND!`, "last-round", currentPlayerIndex);
+            const ann = document.createElement('div');
+            ann.className = 'last-round-announcement';
+            ann.textContent = `🔥 ${players[currentPlayerIndex].name} CALLED LAST ROUND! 🔥`;
+            document.getElementById('animationOverlay').appendChild(ann);
+            setTimeout(() => ann.remove(), 3000);
+            document.getElementById('lastRoundBtn').disabled = true;
+            setTimeout(endTurn, 1500);
+        }
+
+        function endTurn() {
+            isGamePaused = false;
+            const emptyHandWinner = players.find(p => p.getHandSize() === 0);
+            if (emptyHandWinner) { setTimeout(() => endGame(emptyHandWinner), 500); return; }
+
+            const nextIndex = (currentPlayerIndex + 1) % players.length;
+            if (lastRoundCalled && nextIndex === lastRoundPlayer.index) { setTimeout(() => endGame(null), 1000); return; }
+
+            currentPlayerIndex = nextIndex;
+            turnCounter++;
+            
+            if (skipTurns[currentPlayerIndex] > 0) {
+                skipTurns[currentPlayerIndex]--;
+                updateStatus(`${players[currentPlayerIndex].name} is skipped!`);
+                addToLog(`${players[currentPlayerIndex].name} skipped.`, "action", currentPlayerIndex);
+                renderGame();
+                updateGameControls();
+                const currentVer = gameVersion;
+                setTimeout(() => { if(currentVer === gameVersion) endTurn(); }, 2000);
+                return;
+            }
+
+            renderGame();
+            updateGameControls();
+            document.getElementById('turnCounter').textContent = turnCounter;
+            updateStatus(`${players[currentPlayerIndex].name}'s turn.`);
+            
+            if (players[currentPlayerIndex].isAI) {
+                const currentVer = gameVersion;
+                setTimeout(() => { if(currentVer === gameVersion) aiTurn(); }, 1500);
+            }
+        }
+
+        function endGame(instantWinner) {
+            gameActive = false;
+            let scores = players.map(p => ({ name: p.name, score: p.calculateTotalScore(), hand: p.hand.filter(c => c !== null) }));
+            players.forEach(p => { p.hand.forEach(c => { if(c) c.visibleTo.push(players[0].id); }); });
+            renderGame();
+
+            scores.sort((a, b) => a.score - b.score);
+            let html = '';
+            if (instantWinner) html += `<h3 style="color:#00FF00; margin-bottom:15px;">INSTANT WIN: ${instantWinner.name} cleared their hand!</h3>`;
+
+            html += '<div style="margin: 20px 0;">';
+            scores.forEach((res, i) => {
+                const medal = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : '💩';
+                html += `
+                    <div style="margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px; text-align: left;">
+                        <div style="font-size: 1.2em; margin-bottom: 5px; color: ${i===0?'#FFD700':'white'};">
+                            ${medal} <strong>${res.name}</strong>: ${res.score} pts
+                        </div>
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            ${res.hand.map(c => {
+                                const d = c.getDisplay();
+                                return `<div class="card face-up ${c.suit}" style="width: 40px; height: 60px; font-size:0.7em;"><div class="card-value">${d.value}</div><div class="card-suit" style="color: ${d.color}">${d.symbol}</div></div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            });
+            html += '</div>';
+            document.getElementById('finalScores').innerHTML = html;
+            setDifficulty(difficulty);
+            document.getElementById('gameOverModal').style.display = 'flex';
+        }
+
+        // --- RENDER ---
+        function renderGame() {
+            const container = document.getElementById('playersSection');
+            let html = '';
+            players.forEach((player, index) => {
+                const isActive = index === currentPlayerIndex;
+                let displayScore = "?";
+                const visibleCards = player.hand.filter(c => c && c.visibleTo.includes(players[0].id));
+                if (showLookedCards && visibleCards.length > 0) displayScore = `${visibleCards.reduce((sum, c) => sum + c.getPoints(), 0)}`;
+                
+                let indicators = '';
+                if(skipTurns[index] > 0) indicators += `<span style="color:red">⏸️</span>`;
+                if(lastRoundPlayer === player) indicators += `<span style="color:orange">🔥</span>`;
+
+                html += `
+                    <div class="player ${isActive ? 'active' : ''}">
+                        <div class="player-header">
+                            <div class="player-name">${player.name} ${player.isAI ? '🤖' : '👤'} ${indicators}</div>
+                            <div class="player-score">${displayScore}</div>
+                        </div>
+                        <div class="player-hand">`;
+                for (let i = 0; i < player.hand.length; i++) {
+                    const card = player.hand[i];
+                    if (card !== null) {
+                        const isVisible = card.visibleTo.includes(players[0].id);
+                        const showFace = (card.faceUp) || (showLookedCards && isVisible);
+                        const display = card.getDisplay();
+                        const isSwap = player.lastSwapIndex === i && player.isAI;
+                        
+                        html += `
+                            <div class="card-slot">
+                                <div class="card ${showFace ? 'face-up ' + card.suit : 'face-down'} ${isVisible ? 'visible' : ''} ${isSwap ? 'swap-indicator' : ''}">
+                                    ${showFace ? `<div class="card-value" style="color: ${display.color}">${display.value}</div><div class="card-suit" style="color: ${display.color}">${display.symbol}</div>` : '?'}
+                                </div>
+                            </div>`;
+                    }
+                }
+                html += `</div></div>`;
+            });
+            container.innerHTML = html;
+            
+            const dContainer = document.getElementById('discardPile');
+            if (discardPile.length > 0) {
+                const top = discardPile[discardPile.length - 1];
+                const d = top.getDisplay();
+                dContainer.innerHTML = `<div class="discard-count">${discardPile.length}</div><div class="discard-card face-up ${top.suit}"><div class="card-value" style="color: ${d.color}">${d.value}</div><div class="card-suit" style="color: ${d.color}">${d.symbol}</div></div>`;
+            } else { dContainer.innerHTML = `<div style="color: #ccc; text-align: center; padding-top: 40px; font-size: 0.8em;">Empty</div>`; }
+            
+            document.getElementById('deckCount').textContent = deck.length;
+            showDrawnCard();
+        }
+
+        function showDrawnCard() {
+            if (!drawnCard || players[currentPlayerIndex].isAI) { document.getElementById('drawnCardArea').style.display = 'none'; return; }
+            const d = drawnCard.getDisplay();
+            document.getElementById('drawnCardDisplay').innerHTML = `<div class="card face-up ${drawnCard.suit}" style="width: 50px; height: 75px; margin: 0 auto;"><div class="card-value">${d.value}</div><div class="card-suit" style="color: ${d.color}">${d.symbol}</div></div>`;
+            document.getElementById('drawnCardArea').style.display = 'block';
+        }
+        function hideDrawnCard() { document.getElementById('drawnCardArea').style.display = 'none'; }
+        
+        function updateGameControls() {
+            const isHuman = !players[currentPlayerIndex].isAI;
+            const hasCard = drawnCard !== null;
+            const isSkipped = skipTurns[currentPlayerIndex] > 0;
+            document.getElementById('drawDeck').style.pointerEvents = (isHuman && !hasCard && gameActive && !isSkipped && !isGamePaused) ? 'auto' : 'none';
+            document.getElementById('drawDeck').style.opacity = (isHuman && !hasCard && gameActive && !isSkipped && !isGamePaused) ? '1' : '0.7';
+            document.getElementById('swapBtn').disabled = !isHuman || !hasCard || !gameActive || isSkipped || isGamePaused;
+            document.getElementById('useAbilityBtn').disabled = !isHuman || !hasCard || !gameActive || isSkipped || !drawnCard.hasAbility() || isGamePaused;
+            document.getElementById('lastRoundBtn').disabled = !isHuman || lastRoundCalled || !gameActive || isSkipped || hasCard || isGamePaused;
+            document.getElementById('discardBtn').disabled = !isHuman || !hasCard || !gameActive || isSkipped || isGamePaused;
+            document.getElementById('matchBtn').disabled = !gameActive || isGamePaused;
+        }
+
+        function updateStatus(msg) { document.getElementById('statusText').textContent = msg; }
+        function addToLog(msg, type, pIdx) {
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const logEntry = { time, msg, type, pIdx };
+            gameLog.unshift(logEntry); if (gameLog.length > 50) gameLog.pop();
+            document.getElementById('gameLog').innerHTML = gameLog.map(entry => {
+                const cls = `player-${entry.pIdx === 0 ? 'you' : 'ai' + (entry.pIdx || 1)}`;
+                return `<div class="log-entry ${cls} ${entry.type}"><span style="opacity:0.6;font-size:0.8em;">${entry.time}</span> ${entry.msg}</div>`;
+            }).join('');
+        }
+
+        function animateCardDraw(card, fromIdx, toIdx, faceUp) {
+            return new Promise(resolve => {
+                const overlay = document.getElementById('animationOverlay');
+                const div = document.createElement('div');
+                div.className = `card animating ${faceUp ? 'face-up '+card.suit : 'face-down'}`;
+                let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+                if(fromIdx === null) { 
+                    const rect = document.getElementById('drawDeck').getBoundingClientRect();
+                    startX = rect.left; startY = rect.top;
+                } else {
+                    const els = document.querySelectorAll('.player');
+                    if(els[fromIdx]) {
+                        const rect = els[fromIdx].getBoundingClientRect();
+                        startX = rect.left + rect.width/2; startY = rect.top + rect.height/2;
+                    }
+                }
+                div.style.left = startX + 'px'; div.style.top = startY + 'px'; div.style.width = '50px'; div.style.height = '75px';
+                if(faceUp) { const d = card.getDisplay(); div.innerHTML = `<div class="card-value">${d.value}</div><div class="card-suit" style="color: ${d.color}">${d.symbol}</div>`; } 
+                else { div.innerHTML = '?'; }
+                overlay.appendChild(div);
+                
+                let endX = window.innerWidth / 2, endY = window.innerHeight / 2;
+                if(toIdx === 'hand') { endX = window.innerWidth / 2; endY = window.innerHeight - 100; } 
+                else if (toIdx === null) { const rect = document.getElementById('discardPile').getBoundingClientRect(); endX = rect.left; endY = rect.top; } 
+                else { const els = document.querySelectorAll('.player'); if(els[toIdx]) { const rect = els[toIdx].getBoundingClientRect(); endX = rect.left + rect.width/2; endY = rect.top + rect.height/2; } }
+                
+                setTimeout(() => { div.style.left = endX + 'px'; div.style.top = endY + 'px'; }, 50);
+                setTimeout(() => { div.remove(); resolve(); }, 600);
+            });
+        }
+        
+        function showMessage(msg, dur) {
+            return new Promise(resolve => {
+                const d = document.createElement('div');
+                d.className = 'card-message'; d.textContent = msg; d.style.left = '50%'; d.style.top = '50%';
+                document.getElementById('animationOverlay').appendChild(d);
+                setTimeout(() => { d.remove(); resolve(); }, dur);
+            });
+        }
+
+        function hideModal(id) { document.getElementById(id).style.display = 'none'; isGamePaused = false; updateGameControls(); }
+        function toggleShowLookedCards() { showLookedCards = document.getElementById('showLookedCards').checked; renderGame(); }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
